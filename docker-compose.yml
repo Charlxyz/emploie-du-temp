@@ -1,26 +1,26 @@
-version: '3.9'
-
 services:
   traefik:
     image: traefik:v2.10
     container_name: traefik
     command:
-      - "--api.insecure=true" # Activer l'interface web pour tester
-      - "--providers.docker=true" # Utiliser Docker comme fournisseur
-      - "--entrypoints.web.address=:80" # Configurer le port 80
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
     ports:
-      - "80:80"       # Exposer le port HTTP
-      - "8080:8080"   # Exposer le tableau de bord Traefik
+      - "80:80"
+      - "8080:8080"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock # Nécessaire pour gérer Docker
-      - ./traefik:/etc/traefik # Configuration statique (facultatif)
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik:/etc/traefik
 
   webapp:
-    image: nom_de_votre_image # Remplacez par l'image de votre site
+    build:
+      context: . # Construire depuis le répertoire actuel
+      dockerfile: Dockerfile
     container_name: webapp
     labels:
-      - "traefik.enable=true" # Activer Traefik pour ce service
-      - "traefik.http.routers.webapp.rule=Host(`ch.musubi.dev`)" # Nom de domaine
-      - "traefik.http.services.webapp.loadbalancer.server.port=8000" # Port interne exposé par l'application
+      - "traefik.enable=true"
+      - "traefik.http.routers.webapp.rule=Host(`ch.musubi.dev`)"
+      - "traefik.http.services.webapp.loadbalancer.server.port=8000"
     volumes:
       - .:/app
