@@ -1,43 +1,39 @@
-version: '3.9'
-
 services:
   traefik:
     image: traefik:v2.10
     container_name: traefik
     command:
-      - "--entrypoints.web.address=:80" # Entrée HTTP
-      - "--entrypoints.websecure.address=:443" # Entrée HTTPS
-      - "--providers.docker=true" # Activer Docker comme fournisseur
-      - "--certificatesresolvers.myresolver.acme.httpchallenge=true" # Activer le challenge HTTP pour Let's Encrypt
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--providers.docker=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
       - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.myresolver.acme.email=admin@votre-domaine.com" # Remplacez par votre e-mail
-      - "--certificatesresolvers.myresolver.acme.storage=/etc/traefik/acme.json" # Fichier pour stocker les certificats
-      - "--api.insecure=true" # Activer l'interface de Traefik pour le test
+      - "--certificatesresolvers.myresolver.acme.email=admin@votre-domaine.com"
+      - "--certificatesresolvers.myresolver.acme.storage=/etc/traefik/acme.json"
+      - "--api.insecure=true"
     ports:
-      - "80:80" # Redirige le port 80 (HTTP)
-      - "443:443" # Redirige le port 443 (HTTPS)
-      - "8080:8080" # Tableau de bord Traefik
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock # Nécessaire pour interagir avec Docker
-      - ./traefik/acme.json:/etc/traefik/acme.json # Fichier pour stocker les certificats
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik/acme.json:/etc/traefik/acme.json
     networks:
       - web
 
   webapp:
-    image: python:3.10-slim # Exemple d'image pour une application Python
+    image: python:3.10-slim
     container_name: webapp
     working_dir: /app
     volumes:
-      - ./webapp:/app # Répertoire de l'application
-    command: >
-      sh -c "pip install flask && python app.py" # Installer Flask et lancer l'application
+      - ./webapp:/app
+    command: ["sh", "-c", "pip install flask && python app.py"]
     labels:
-      - "traefik.enable=true" # Activer Traefik pour ce service
-      - "traefik.http.routers.webapp.rule=Host(`votre-domaine.com`)" # Remplacez par votre domaine
-      - "traefik.http.routers.webapp.entrypoints=websecure" # Entrée HTTPS
-      - "traefik.http.routers.webapp.tls=true" # Activer TLS
-      - "traefik.http.routers.webapp.tls.certresolver=myresolver" # Résolveur Let's Encrypt
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https" # Redirection HTTP vers HTTPS
+      - "traefik.enable=true"
+      - "traefik.http.routers.webapp.rule=Host(`votre-domaine.com`)"
+      - "traefik.http.routers.webapp.entrypoints=websecure"
+      - "traefik.http.routers.webapp.tls=true"
+      - "traefik.http.routers.webapp.tls.certresolver=myresolver"
     networks:
       - web
 
