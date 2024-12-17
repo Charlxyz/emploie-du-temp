@@ -1,26 +1,46 @@
+version: '3.9'
+
 services:
   traefik:
     image: traefik:v2.10
     container_name: traefik
     command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--entrypoints.web.address=:8080"
+      - "--entrypoints.web.address=:80" # Entrée HTTP
+      - "--entrypoints.websecure.address=:443" # Entrée HTTPS
+      - "--providers.docker=true" # Activer Docker comme fournisseur
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true" # Activer le challenge HTTP pour Let's Encrypt
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.email=admin@votre-domaine.com" # Remplacez par votre e-mail
+      - "--certificatesresolvers.myresolver.acme.storage=/etc/traefik/acme.json" # Fichier pour stocker les certificats
+      - "--api.insecure=true" # Activer l'interface de Traefik pour le test
     ports:
-      - "8081:8081"
-      - "8080:8080"
+      - "80:80" # Redirige le port 80 (HTTP)
+      - "443:443" # Redirige le port 443 (HTTPS)
+      - "8080:8080" # Tableau de bord Traefik
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./traefik:/etc/traefik
+      - /var/run/docker.sock:/var/run/docker.sock # Nécessaire pour interagir avec Docker
+      - ./traefik/acme.json:/etc/traefik/acme.json # Fichier pour stocker les certificats
+    networks:
+      - web
 
   webapp:
-    build:
-      context: . # Construire depuis le répertoire actuel
-      dockerfile: Dockerfile
+    image: python:3.10-slim # Exemple d'image pour une application Python
     container_name: webapp
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.webapp.rule=Host(`ch.musubi.dev`)"
-      - "traefik.http.services.webapp.loadbalancer.server.port=8000"
+    working_dir: /app
     volumes:
-      - .:/app
+      - ./webapp:/app # Répertoire de l'application
+    command: >
+      sh -c "pip install flask && python app.py" # Installer Flask et lancer l'application
+    labels:
+      - "traefik.enable=true" # Activer Traefik pour ce service
+      - "traefik.http.routers.webapp.rule=Host(`votre-domaine.com`)" # Remplacez par votre domaine
+      - "traefik.http.routers.webapp.entrypoints=websecure" # Entrée HTTPS
+      - "traefik.http.routers.webapp.tls=true" # Activer TLS
+      - "traefik.http.routers.webapp.tls.certresolver=myresolver" # Résolveur Let's Encrypt
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https" # Redirection HTTP vers HTTPS
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
