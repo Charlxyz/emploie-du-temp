@@ -1,60 +1,39 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
-from sqlalchemy.orm import relationship, sessionmaker, declarative_base
+from flask import Flask, render_template, redirect, url_for, request
+from Class import Professeur, Classe, Etudiant, Salle, Horaire, createBDD
 
-# Création de la base de données
-Base = declarative_base()
+# Initialisation de la base de données et création d'une session
+Session = createBDD()
+db_session = Session
 
-# Modèle pour les salles
-class Salle(Base):
-    __tablename__ = 'salles'
-    id = Column(Integer, primary_key=True)
-    nom = Column(String, unique=True, nullable=False)
+app = Flask(__name__, template_folder="./templates")
 
-# Modèle pour les professeurs
-class Professeur(Base):
-    __tablename__ = 'professeurs'
-    id = Column(Integer, primary_key=True)
-    nom = Column(String, nullable=False)
-    prenom = Column(String, nullable=False)
-    matiere = Column(String, nullable=False)
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        if "add-student" in request.form:
+            # Récupérer les données du formulaire
+            nom = request.form['nom']
+            prenom = request.form['prenom']
+            age = int(request.form['age'])
+            classe_id = int(request.form['classe'])
 
-# Modèle pour les classes
-class Classe(Base):
-    __tablename__ = 'classes'
-    id = Column(Integer, primary_key=True)
-    nom = Column(String, unique=True, nullable=False)
-    niveau = Column(Integer, nullable=False)
+            # Créer un nouvel étudiant
+            student = Etudiant(
+                nom=nom,
+                prenom=prenom,
+                age=age,
+                classe_id=classe_id
+            )
+            # Ajouter l'étudiant à la session et sauvegarder
+            db_session.add(student)
+            db_session.commit()
 
-# Modèle pour les étudiants
-class Etudiant(Base):
-    __tablename__ = 'etudiants'
-    id = Column(Integer, primary_key=True)
-    nom = Column(String, nullable=False)
-    prenom = Column(String, nullable=False)
-    age = Column(Integer, nullable=False)
-    classe_id = Column(Integer, ForeignKey('classes.id'), nullable=False)
-    classe = relationship("Classe", back_populates="etudiants")
+            # Rediriger vers la page principale
+            return redirect(url_for('index'))
 
-# Ajout de la relation dans Classe
-Classe.etudiants = relationship("Etudiant", back_populates="classe", cascade="all, delete-orphan")
+    # Charger les données nécessaires pour afficher dans le template
+    classes = db_session.query(Etudiant).all()
+    return render_template("index.html", classes=classes)
 
-# Modèle pour les horaires
-class Horaire(Base):
-    __tablename__ = 'horaires'
-    id = Column(Integer, primary_key=True)
-    professeur_id = Column(Integer, ForeignKey('professeurs.id'), nullable=False)
-    classe_id = Column(Integer, ForeignKey('classes.id'), nullable=False)
-    salle_id = Column(Integer, ForeignKey('salles.id'), nullable=False)
-    horaire = Column(String, nullable=False) 
-    
-    professeur = relationship("Professeur")
-    classe = relationship("Classe")
-    salle = relationship("Salle")
-
-# Création de la base de données
-engine = create_engine('sqlite:///database//planning.db', echo=True)
-Base.metadata.create_all(engine)
-
-# Création d'une session
-Session = sessionmaker(bind=engine)
-session = Session()
+if __name__ == '__main__':
+    app.run(debug=True)
